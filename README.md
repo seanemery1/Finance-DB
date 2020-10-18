@@ -2,6 +2,8 @@
 A basic financial analysis service to make stock data and evaluation techniques accessible and comprehensible. Offered as a website, finance-db provides the tools needed to analyze the stock information of S&P 500 companies enabling individuals to make informed investments.  
 Finance-db is backed by an SQL database containing the complete stock history of the S&amp;P 500 with a basic web interface implemented with flask in python and html allowing users to interact with financial data and analysis techniques.
 
+A website with this code up and running can be found here: semery.oxycreates.org
+
 ## Data Retreival Strategy
 
 Yahoo Finance is an online platform used both by investment professionals and regular citizens to access accurate and updated financial and economic records. All data from Yahoo Finance can be accessed through packages in higher level programming languages such as R, Python, and Matlab. A single csv file with the tickers, stock names, and sectors of all S&P 500 companies is used as a basis to fill the database. This method uses the Python package “yahoo_fin” to pull data from https://finance.yahoo.com into a DataFrame for each stock in the csv file. Then, using the official MySQL/Python Connector, the data is sent from Python to the MySQL server to form each individual stock table. 
@@ -23,18 +25,18 @@ Implementing this code builds a 2-Dimensional DataFrame for all stocks listed in
 **1.** In SQLconnector.py and flaskWebsite.py: 
     Change all instances of:
     ```python
-    conn = sqlconnection.connect(​user​=​'root'​, ​password​=​''​, ​host​=​'127.0.0.1'​, database​=​'financedb'​) 
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     ```
     To: your username, password, and host for the MySQL database 
  
     Change all CSV paths:
     ```python
-    data = pd.read_csv(​"C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/S&P500.csv"​, ​names​=[​"ticker"​, ​"stock_name"​, ​"sector"​]) 
+    data = pd.read_csv(​"C:/Finance-DB-master/Setup code/S&P500.csv"​, ​names​=[​"ticker"​, ​"stock_name"​, ​"sector"​]) 
   
-    users = pd.read_csv(​"C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/usersimporttest.csv"​, ​names​=[​"username"​, ​"password"​, ​"fname"​, ​"lname"​, ​"email"​, "subscriber"​]) 
-    portfolio = pd.read_csv(​"C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/portfolioimporttest.csv"​, ​names​=[​"portfolio_name"​]) 
-    has_portfolio = pd.read_csv(​"C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/has_portfolioimporttest.csv"​, ​names​=[​"login_id"​,​"portfolio_id"​]) 
-    has_stock = pd.read_csv(​"C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/has_stockimporttest.csv"​, ​names​=[​"portfolio_id"​, ​"ticker"​]) 
+    users = pd.read_csv(​"C:/Finance-DB-master/test-files/usersimporttest.csv"​, ​names​=[​"username"​, ​"password"​, ​"fname"​, ​"lname"​, ​"email"​, "subscriber"​]) 
+    portfolio = pd.read_csv(​"C:/Finance-DB-master/test-files/portfolioimporttest.csv"​, ​names​=[​"portfolio_name"​]) 
+    has_portfolio = pd.read_csv(​"C:/Finance-DB-master/test-files/has_portfolioimporttest.csv"​, ​names​=[​"login_id"​,​"portfolio_id"​]) 
+    has_stock = pd.read_csv(​"C:/Finance-DB-master/test-files/has_stockimporttest.csv"​, ​names​=[​"portfolio_id"​, ​"ticker"​]) 
     ```
     To: your path for the CSVs -- (users, portfolio, has_portfolio, has_stock are only needed if inital test data is wanted in the database)
   
@@ -56,7 +58,7 @@ Implementing this code builds a 2-Dimensional DataFrame for all stocks listed in
     
     b. SQLconnector.py 
     
-    *Running the default SP500.csv (instead of SP500test.csv) can take up to 30 minutes or more to import all 4 million rows of stock data. There was no way around this. We tried.*
+    *Running the default S&P500.csv (instead of S&P500test.csv) can take up to 30 minutes or more to import all 4 million rows of stock data. There was no way around this. We tried.*
     
 **5.** Place flaskWebsite.py, a ‘static’ folder, and a ‘templates’ folder in the same project folder 
 

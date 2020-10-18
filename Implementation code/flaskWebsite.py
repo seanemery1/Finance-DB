@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 from flask import request, redirect, session, flash
-import mysql_connector_python.mysql.connector as sqlconnection
+import mysql.connector as sqlconnection
 from yahoo_fin import stock_info as si
 import os
 import binascii
@@ -19,10 +19,9 @@ app.secret_key = os.urandom(12)
 currentUser = ""
 # creates a new website in a variable called app
 
-
 def getLatestDate(x):
     try:
-        conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+        conn = sqlconnection.connect(user='root', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
 
         selectDateQuery = ("Select eod "
@@ -49,7 +48,7 @@ def getLatestDate(x):
 
 
 def findBiggestPercentChange():
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
     selectTickers = ("Select ticker "
                      "from SP500")
@@ -66,17 +65,17 @@ def findBiggestPercentChange():
     for x in tickerlistparse:
         newdate = str(getLatestDate(x)).replace("-", "")
 
-        #print(newdate)
+        print(newdate)
         findQuery = ("Select ((adjclose - open_price) / open_price) * 100.0 From " + x +" Where eod = " + newdate)
 
 
-        #print("Saving: ", x)
+        print("Saving: ", x)
         cursor.execute(findQuery)
 
         y = cursor.fetchone()
         highlow.append(y)
         tickerlist.append(x)
-
+    
     indexmax, valuemax = max(enumerate(highlow), key=operator.itemgetter(1))
     indexmin, valuemin = min(enumerate(highlow), key=operator.itemgetter(1))
     '''
@@ -133,7 +132,7 @@ def findBiggestPercentChange():
 
 
 def mostPopularStock():
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     insertHas_Stock = ("select has_stock.ticker, stock_name, count(*) from has_stock, SP500 "
@@ -164,8 +163,8 @@ def mostPopularStock():
 
 
 
-def percentages():
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+def volumes():
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     selectSectors = ("Select all count(ticker), sector "
@@ -191,7 +190,7 @@ def percentages():
     for x in currentTickers:
         newdate = str(getLatestDate(x)).replace("-", "")
 
-        selectStocks = ("Select sector, close_price*volume "
+        selectStocks = ("Select sector, volume "
                      "from " + x + ", SP500 "
                      "where SP500.ticker = " + x + ".ticker and eod = " + newdate)
         cursor.execute(selectStocks)
@@ -221,13 +220,13 @@ def percentages():
 
         sumCap = sumCap + y[1]
     sectorList = []
-    print(sectorsCounts)
-    returnstr = "~Current Market Cap for S&P500: " + str(sumCap)
+    
+    ndate = str(getLatestDate('GOOG'))
+    returnstr = "S&P500 Volume Traded on " + ndate + ": " + str(sumCap)
     sectorList.append(returnstr)
     for x in sectorsCounts:
-        sectorList.append("Sector: " + str(x[1]) + "     Companies in Sector: " + str(x[0]) +
-                     "     Sector Market Cap: " + str(round(x[2], 2)) + "     " 
-                    "Market Share Percentage: "+ str(round(((x[2]/sumCap)*100), 1)) + "%")
+        sectorList.append("Sector: " + str(x[1]) + ",     Companies in Sector: " + str(x[0]) +
+                     ",     Sector Volume: " + str(round(x[2], 2)))
 
     return(sectorList)
     cursor.close()
@@ -240,12 +239,12 @@ def percentages():
 
 
 def seeUsersPortfoliosStocks():
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
     selectQuery = ("Select username, portfolio_name, stock_name "
-                     "From Users, has_portfolio, portfolio, has_stock, SP500 "
+                     "From Users, has_portfolio, Portfolio, has_stock, SP500 "
                      "where Users.login_id = has_portfolio.login_id and has_portfolio.portfolio_id = "
-                     "portfolio.portfolio_id and portfolio.portfolio_id = has_stock.portfolio_id and "
+                     "Portfolio.portfolio_id and Portfolio.portfolio_id = has_stock.portfolio_id and "
                      "has_stock.ticker = SP500.ticker "
                      "Order By username")
     cursor.execute(selectQuery)
@@ -273,7 +272,7 @@ def seeUsersPortfoliosStocks():
 def funData():
     pct_changes = findBiggestPercentChange()
     mostPop = mostPopularStock()
-    marketShares = percentages()
+    marketShares = volumes()
     lenMS = len(marketShares)
 
     return render_template('funData.html', pct_changes=pct_changes, mostPop=mostPop, marketShares=marketShares, lenMS=lenMS)
@@ -297,10 +296,10 @@ def delPort():
     try:
         portfolio_name = request.form['name']
 
-        conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb', autocommit=True)
+        conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
 
-        deletePortfolio = ("DELETE FROM portfolio WHERE portfolio_name = '" + portfolio_name + "'")
+        deletePortfolio = ("DELETE FROM Portfolio WHERE portfolio_name = '" + portfolio_name + "'")
 
         cursor.execute(deletePortfolio)
         print(deletePortfolio)
@@ -349,18 +348,18 @@ def createPort():
         return render_template('viewAcc.html')
 
 
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb', autocommit=True)
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     selectPortfolioid = ("SELECT Max(portfolio_id) + 1 "
-                         "FROM portfolio")
+                         "FROM Portfolio")
 
     cursor.execute(selectPortfolioid)
 
     for x in cursor:
         portfolio_id = x[0]
 
-    insertPortfolio = ("INSERT INTO portfolio " 
+    insertPortfolio = ("INSERT INTO Portfolio " 
                        "(portfolio_id, portfolio_name) "
                        "VALUES (%s, %s)")
 
@@ -368,7 +367,7 @@ def createPort():
 
     cursor.execute(insertPortfolio, insertData)
 
-    insertStatement = "INSERT INTO portfolio (portfolio_id, portfolio_name) VALUES " + "(" + str(portfolio_id) + ", " + str(portfolio_name) + ")"
+    insertStatement = "INSERT INTO Portfolio (portfolio_id, portfolio_name) VALUES " + "(" + str(portfolio_id) + ", " + str(portfolio_name) + ")"
     print(insertStatement)
 
     inserthasPortfolio = ("INSERT INTO has_portfolio "
@@ -408,7 +407,7 @@ def delStock():
     ticker = session['currentStock']
     portid = session['currentPortid']
 
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     selectTickerQuery = ("Select ticker "
@@ -447,7 +446,7 @@ def addStock():
         ticker = session['currentStock']
         portid = session['currentPortid']
 
-        conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+        conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
 
         insertStock = ("INSERT INTO has_stock "
@@ -475,7 +474,7 @@ def addStock():
         return render_template('viewPort.html', tickers=tickers)
     except:
         portid = session['currentPortid']
-        conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+        conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
 
         selectTickerQuery = ("Select ticker "
@@ -504,12 +503,12 @@ def addStock():
 
 @app.route('/updateSub', methods=['POST'])
 def updateSubscription():
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     if session['subscriber'] == 1:
 
-        updateQuery = ("UPDATE users "
+        updateQuery = ("UPDATE Users "
                        "SET subscriber = 0 "
                        "WHERE login_id = '" + str(session['user_id']) + "'")
         cursor.execute(updateQuery)
@@ -517,7 +516,7 @@ def updateSubscription():
         session['subscriber'] = 0
 
     else:
-        updateQuery = ("UPDATE users "
+        updateQuery = ("UPDATE Users "
                        "SET subscriber = 1 "
                        "WHERE login_id = '" + str(session['user_id']) + "'")
         cursor.execute(updateQuery)
@@ -541,7 +540,7 @@ def updateSubscription():
 def deleteAcc():
     login_id = session['user_id']
 
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb', autocommit=True)
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     # find portfolios of user to delete before removing account
@@ -549,13 +548,13 @@ def deleteAcc():
     portfolio_ids = session['portfolio_id']
     count = 0
     for x in portfolio_ids:
-        deletePortfolios = ("DELETE FROM portfolio WHERE portfolio_id = " + str(x))
+        deletePortfolios = ("DELETE FROM Portfolio WHERE portfolio_id = " + str(x))
         cursor.execute(deletePortfolios)
         print("Deleting Portfolio: " + session['portfolio_name'][count])
         count += 1
 
 
-    deleteAccount = ("DELETE FROM users WHERE login_id = " + str(login_id))
+    deleteAccount = ("DELETE FROM Users WHERE login_id = " + str(login_id))
 
     cursor.execute(deleteAccount)
     print("Deleting Account: " + session['username'])
@@ -593,7 +592,7 @@ def viewPort():
     portid = session['portfolio_id'][count]
     session['currentPortid'] = portid
 
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     selectTickerQuery = ("Select ticker "
@@ -683,11 +682,11 @@ def encrypt_string(hash_string):
 @app.route('/login', methods=['POST'])
 def login():
     username = request.form['username']
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     selectUsers = ("SELECT username "
-                   "FROM users ")
+                   "FROM Users ")
 
     cursor.execute(selectUsers)
 
@@ -705,7 +704,7 @@ def login():
         return mainPage()
 
     selectDateQuery = ("Select password_salt "
-                       "From users "
+                       "From Users "
                        "Where username = " + "'" + username + "'")
     cursor.execute(selectDateQuery)
 
@@ -715,7 +714,7 @@ def login():
     hash = encrypt_string(str(salt) + request.form['password'])
 
     selectDateQuery = ("Select login_id, password_hash, fname, subscriber, username "
-                       "From users "
+                       "From Users "
                        "Where username = " + "'" + username + "'")
     cursor.execute(selectDateQuery)
 
@@ -727,8 +726,8 @@ def login():
         username = x[4]
 
     selectDateQuery = ("Select Portfolio.portfolio_id, portfolio_name "
-                       "From has_portfolio, portfolio "
-                       "Where has_portfolio.portfolio_id = portfolio.portfolio_id and has_portfolio.login_id = " + str(currentUser))
+                       "From has_portfolio, Portfolio "
+                       "Where has_portfolio.portfolio_id = Portfolio.portfolio_id and has_portfolio.login_id = " + str(currentUser))
     cursor.execute(selectDateQuery)
 
     portids = []
@@ -765,7 +764,7 @@ def chooseRecPage():
 def setRecTickerPort():
     if(session['subscriber'] == 0):
         portid = session['currentPortid']
-        conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+        conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
         selectTickerQuery = ("Select ticker "
                              "From has_stock "
@@ -797,7 +796,7 @@ def setRecTickerReg():
 
 def getRecData(ticker):
     style.use('ggplot')
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     selectDateQuery = ("Select * "
@@ -849,7 +848,7 @@ def getRecData(ticker):
     ax1.plot(signals.loc[signals.positions == -1.0].index, signals.short_mavg[signals.positions == -1.0], 'v',
              markersize=10, color='k')  # Plot the sell signals
     plt.title('Trading Strategy for ' + ticker)
-    fig.savefig('C:/Users/wrenp/PycharmProjects/FlaskPractice/static/displayRecFigure.png')
+    fig.savefig('static/displayRecFigure.png')
 
     return redirect('/viewRec2.html')
 
@@ -880,7 +879,7 @@ def setPredTickerReg():
 
 def getPredData(ticker):
     style.use('ggplot')
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     selectDateQuery = ("Select * "
@@ -953,7 +952,7 @@ def getPredData(ticker):
     plt.title(ticker + ' Forecast')
     plt.xlim(xlower, xupper)
     plt.ylim(ylower, yupper)
-    fig.savefig('C:/Users/wrenp/PycharmProjects/FlaskPractice/static/displayPredFigure.png')  # to save picture of plot
+    fig.savefig('static/displayPredFigure.png')  # to save picture of plot
 
     return redirect('/viewPred2.html')
 
@@ -995,7 +994,7 @@ def setViewTickerReg():
 def getStockData(ticker, sdate, edate):
     style.use('ggplot')
 
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     if(sdate == "" and edate == ""):
@@ -1034,7 +1033,7 @@ def getStockData(ticker, sdate, edate):
     plt.title(ticker)
     plt.xlabel('Date')
     plt.ylabel('Price')
-    fig.savefig('C:/Users/wrenp/PycharmProjects/FlaskPractice/static/displayFigure.png') # to save picture of plot
+    fig.savefig('static/displayFigure.png') # to save picture of plot
 
     return redirect('/viewStock2.html')
 
@@ -1074,10 +1073,10 @@ def signup():
     return redirect('/')
 
 def insertUser(username, password, fname, lname, email, subscriber):
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
-    insertUsers = ("INSERT INTO USERS"
+    insertUsers = ("INSERT INTO Users"
                       "(username, password_salt, password_hash, fname, lname, email, subscriber) "
                       "VALUES (%s, %s, %s, %s, %s, %s, %s)")
 
@@ -1089,7 +1088,7 @@ def insertUser(username, password, fname, lname, email, subscriber):
                  fname, lname, email, subscriber]
 
     cursor.execute(insertUsers, user_data)
-    print("INSERT INTO USERS(variables) VALUES " + str(user_data))
+    print("INSERT INTO Users (variables) VALUES " + str(user_data))
 
     conn.commit()
     cursor.close()
@@ -1114,7 +1113,7 @@ def users():
 
 
 def updateStockData():
-    conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     selectTickers = ("SELECT ticker "
@@ -1130,7 +1129,7 @@ def updateStockData():
     conn.close()
 
     for x in tickers:
-        conn = sqlconnection.connect(user='root', password='redblanket', host='127.0.0.1', database='financedb')
+        conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
 
         insertStockData = ("INSERT INTO " + x + " "
@@ -1201,4 +1200,3 @@ if __name__ == '__main__':
     app.run(debug=True)
 
 # if this script is run directly then start the application
-

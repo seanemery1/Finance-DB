@@ -1,7 +1,7 @@
 from yahoo_fin import stock_info as si
 import pandas as pd
-import mysql_connector_python.mysql.connector as sqlconnection
-import mysql_connector_python.mysql.connector.errorcode as errorcode
+import mysql.connector as sqlconnection
+import mysql.connector.errorcode as errorcode
 import os
 import binascii
 # hash generator with hashlib
@@ -13,15 +13,15 @@ import uuid
 pd.options.display.max_columns = 999
 pd.options.display.width = 999
 
-data = pd.read_csv("C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/S&P500.csv", names=["ticker", "stock_name", "sector"])
+data = pd.read_csv("C:/Finance-DB-master/Setup code/S&P500.csv", names=["ticker", "stock_name", "sector"])
 
 tickers = data["ticker"]
 
 # date        open         high          low        close     adjclose      volume ticker
-users = pd.read_csv("C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/usersimporttest.csv", names=["username", "password", "fname", "lname", "email", "subscriber"])
-portfolio = pd.read_csv("C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/portfolioimporttest.csv", names=["portfolio_name"])
-has_portfolio = pd.read_csv("C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/has_portfolioimporttest.csv", names=["login_id","portfolio_id"])
-has_stock = pd.read_csv("C:/Users/wrenp/Documents/Spring 2019/Databases/Final Project/has_stockimporttest.csv", names=["portfolio_id", "ticker"])
+users = pd.read_csv("C:/Finance-DB-master/test-files/usersimporttest.csv", names=["username", "password", "fname", "lname", "email", "subscriber"])
+portfolio = pd.read_csv("C:/Finance-DB-master/test-files/portfolioimporttest.csv", names=["portfolio_name"])
+has_portfolio = pd.read_csv("C:/Finance-DB-master/test-files/has_portfolioimporttest.csv", names=["login_id","portfolio_id"])
+has_stock = pd.read_csv("C:/Finance-DB-master/test-files/has_stockimporttest.csv", names=["portfolio_id", "ticker"])
 
 # https://medium.com/@dwernychukjosh/sha256-encryption-with-python-bf216db497f9
 def encrypt_string(hash_string):
@@ -41,7 +41,7 @@ def str2boolint(str):
 
 
 def createStockTables(tickers):
-    conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     for x in tickers:
@@ -76,7 +76,7 @@ createStockTables(tickers)
 
 
 def insertSP500(data):
-    conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
     insertSP500 = ("INSERT INTO SP500"
@@ -84,9 +84,15 @@ def insertSP500(data):
                       "VALUES (%s, %s, %s)")
 
     for x in range(data['ticker'].count()):
-        stock_data = [data['ticker'].loc[x], data['stock_name'].loc[x], data['sector'].loc[x]]
-        cursor.execute(insertSP500, stock_data)
-        print("INSERT INTO SP500(ticker, stock_name, sector) VALUES " + str(stock_data))
+        try:
+            stock_data = [data['ticker'].loc[x], data['stock_name'].loc[x], data['sector'].loc[x]]
+            print(data['ticker'].loc[x])
+            cursor.execute(insertSP500, stock_data)
+            print("INSERT INTO SP500(ticker, stock_name, sector) VALUES " + str(stock_data))
+        except:
+
+            print("fail")
+            pass
 
     conn.commit()
     cursor.close()
@@ -97,21 +103,41 @@ insertSP500(data)
 
 
 def insertStockData(tickers):
+
     for x in tickers:
-        conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+        conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
+        # Faster insert query parameters
+        cursor.autocommit = True;
+        cursor.fast_executemany = True;
 
         insertStockData = ("INSERT INTO " + x + " "
                            "(eod, open_price, high_price, low_price, close_price, adjclose, volume, ticker) "
                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
 
         try:
+            print("Inserting " + x)
             data = pd.DataFrame(si.get_data(x, index_as_date=False))
-            for y in range(data['ticker'].count()):
-                print(y)
-                stock_data = [data['date'].loc[y], float(data['open'].loc[y]), float(data['high'].loc[y]), float(data['low'].loc[y]), float(data['close'].loc[y]), float(data['adjclose'].loc[y]), float(data['volume'].loc[y]), data['ticker'].loc[y]]
-                cursor.execute(insertStockData, stock_data)
-                print("INSERT INTO " + x + " (eod, open_price, high_price, low_price, close_price, adjclose, volume, ticker) VALUES " + str(stock_data))
+            data['date'] = data['date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+            data = data.where((pd.notnull(data)), None)
+            
+            # Faster insert query with executemany ()
+            for row_count in range(0, data.shape[0]):
+                try:
+                    chunk = data.iloc[row_count:row_count + 1, :].values.tolist()
+                    tuples_of_tuples = tuple(tuple(x) for x in chunk)
+                    cursor.executemany(insertStockData, tuples_of_tuples)
+
+                except:
+                    pass
+
+            # Old, slower insert query method
+
+            # for y in range(data['ticker'].count()):
+            #     print(y)
+            #     stock_data = [data['date'].apply(lambda x: x.strftime('%Y-%m-%d')).loc[y], float(data['open'].loc[y]), float(data['high'].loc[y]), float(data['low'].loc[y]), float(data['close'].loc[y]), float(data['adjclose'].loc[y]), float(data['volume'].loc[y]), data['ticker'].loc[y]]
+            #     cursor.execute(insertStockData, stock_data)
+            #     print("INSERT INTO " + x + " (eod, open_price, high_price, low_price, close_price, adjclose, volume, ticker) VALUES " + str(stock_data))
 
 
         except (KeyError, ValueError):
@@ -125,12 +151,12 @@ def insertStockData(tickers):
         conn.close()
 
 
-insertStockData(tickers)
+
 
 
 def getLatestDate(x):
     try:
-        conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+        conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
 
         selectDateQuery = ("Select eod "
@@ -153,7 +179,7 @@ def getLatestDate(x):
 
 def updateStockData(tickers):
     for x in tickers:
-        conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+        conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
         cursor = conn.cursor()
 
         insertStockData = ("INSERT INTO " + x + " "
@@ -163,7 +189,10 @@ def updateStockData(tickers):
         try:
             # data['ticker'].count() - 2, 0, -1
             data = pd.DataFrame(si.get_data(x, start_date=getLatestDate(x), index_as_date=False))
-            for y in range(data['ticker'].count()):
+            data['date'] = data['date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+            print(data['ticker'].count() + 1)
+            for y in range(1, data['ticker'].count()):
+                print(data['date'].loc[y])
                 print(y)
                 stock_data = [data['date'].loc[y], float(data['open'].loc[y]), float(data['high'].loc[y]),
                               float(data['low'].loc[y]), float(data['close'].loc[y]), float(data['adjclose'].loc[y]),
@@ -174,6 +203,7 @@ def updateStockData(tickers):
 
 
         except:
+            print("pass")
             # skipping the most recent date in stock_data table
             pass
 
@@ -186,10 +216,10 @@ def updateStockData(tickers):
 #updateStockData(tickers)
 
 def importUsers(users):
-    conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
-    insertUsers = ("INSERT INTO USERS"
+    insertUsers = ("INSERT INTO Users"
                       "(username, password_salt, password_hash, fname, lname, email, subscriber) "
                       "VALUES (%s, %s, %s, %s, %s, %s, %s)")
 
@@ -212,14 +242,14 @@ def importUsers(users):
     conn.close()
 
 
-importUsers(users)
+#importUsers(users)
 
 
 def importPortfolio(portfolio):
-    conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
-    insertPortfolio = ("INSERT INTO PORTFOLIO"
+    insertPortfolio = ("INSERT INTO Portfolio"
                       "(portfolio_name) "
                       "VALUES (%s)")
     for x in range(portfolio['portfolio_name'].count()):
@@ -228,19 +258,27 @@ def importPortfolio(portfolio):
         cursor.execute(insertPortfolio, portfolio_data)
         print("INSERT INTO PORTFOLIO(variables) VALUES " + str(portfolio_data))
 
+    # insertPortfolio = ("INSERT INTO PORTFOLIO"
+    #                    "(portfolio_name) "
+    #                    "VALUES (%s)")
+    # for x in range(portfolio['portfolio_name'].count()):
+    #     portfolio_data = [portfolio['portfolio_name'].loc[x]]
+    #     cursor.execute(insertPortfolio, portfolio_data)
+    #     print("INSERT INTO PORTFOLIO(variables) VALUES " + str(portfolio_data))
+
     conn.commit()
     cursor.close()
     conn.close()
 
 
-importPortfolio(portfolio)
+#importPortfolio(portfolio)
 
 
 def importHas_Portfolio(has_portfolio):
-    conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+    conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
     cursor = conn.cursor()
 
-    insertHas_Portfolio = ("INSERT INTO HAS_PORTFOLIO"
+    insertHas_Portfolio = ("INSERT INTO has_portfolio"
                       "(login_id , portfolio_id) "
                       "VALUES (%s, %s)")
     for x in range(has_portfolio['login_id'].count()):
@@ -252,13 +290,13 @@ def importHas_Portfolio(has_portfolio):
     conn.commit()
     cursor.close()
     conn.close()
-importHas_Portfolio(has_portfolio)
+#importHas_Portfolio(has_portfolio)
 
 def importHas_Stock(has_stock):
-   conn = sqlconnection.connect(user='root', password='', host='127.0.0.1', database='financedb')
+   conn = sqlconnection.connect(user='admin', password='password123', host='server.ip.website.com', database='financedb')
    cursor = conn.cursor()
 
-   insertHas_Stock = ("INSERT INTO HAS_STOCK"
+   insertHas_Stock = ("INSERT INTO has_stock"
                      "(portfolio_id, ticker) "
                      "VALUES (%s, %s)")
    for x in range(has_stock['portfolio_id'].count()):
@@ -270,4 +308,5 @@ def importHas_Stock(has_stock):
    conn.commit()
    cursor.close()
    conn.close()
-importHas_Stock(has_stock)
+
+#importHas_Stock(has_stock)
